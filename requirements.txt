@@ -1,0 +1,6 @@
+streamlit #user Interface
+langchain   # Framework
+langchain-openai    #to access GPT models
+langchain-google-genai   # To access Gemini models
+dotenv  # to access environment varibles
+langchain_groq 
