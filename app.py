@@ -115,47 +115,63 @@ LLMs, Agentic AI and more 🚀
 </p>
 """, unsafe_allow_html=True)
 
+
+# ==============================
+# JSON Parser
+# ==============================
+parser = JsonOutputParser()
+
+
+
 # ==============================
 # Prompt Template
 # ==============================
+
 template = """
-You are a Data Science and AI trainer with 15+ years of experience.
+You are an expert AI tutor and technical assistant.
 
 Your task is to:
 
-1. Classify the query into one of these modules:
+1. Identify the topic of the user query.
 
-- Python
-- EDA
-- Statistics
-- PowerBI
-- SQL
-- Machine Learning
-- Neural Networks
-- Large Language Models
-- Agentic AI
+2. Extract 3-4 important keywords from the query.
 
-2. Extract 3-4 technical keywords from the query.
+3. Explain the answer in simple and clear language in 100-200 words.
 
-3. Explain the answer in 100-200 words.
+4. Provide a Python code example if applicable.
 
-4. Show a Python code snippet related to the query.
+5. Provide useful YouTube or blog links related to the topic.
 
-5. Provide some clickable YouTube or Blog links related to the query.
+IMPORTANT:
+- Return ONLY valid JSON.
+- Do not return markdown.
+- Do not use triple backticks.
+- Do not add explanations outside JSON.
+- "keywords" must always be a JSON array.
+- "links" must always be a JSON array.
 
-If the query is irrelevant to the above topics, display:
-"Insufficient data"
+Return JSON in this EXACT structure:
 
-Return the output in valid JSON format:
-
-{{
-    "topic":"Python",
-    "keywords":["keyword1","keyword2","keyword3"],
-    "answer":"Summary about the query",
-    "python_code":"print('Hello World')",
-    "links":["https://example.com","https://youtube.com"]
+{{ 
+    "topic": "Topic Name", 
+    "keywords": [ "keyword1", "keyword2" ], 
+    "answer": "Detailed explanation here", 
+    "python_code": "print('Hello World')", 
+    "links": [ "https://example.com" ] 
 }}
+
+If Python code is not applicable, return:
+"python_code": "Not applicable"
+
+All fields are mandatory.
+Never skip any field.
+
+{format_instructions}
 """
+
+
+
+
 
 # ==============================
 # User Input
@@ -167,10 +183,13 @@ user_input = st.text_input(
 # ==============================
 # Prompt
 # ==============================
-prompt = ChatPromptTemplate.from_messages([
-    ("system", template),
-    ("human", "{query}")
-])
+prompt = ChatPromptTemplate.from_messages([ 
+    ("system", template), 
+    ("human", "{query}") 
+]).partial( 
+    format_instructions=parser.get_format_instructions() 
+)
+
 
 # ==============================
 # Groq Model
@@ -181,15 +200,12 @@ model = ChatGroq(
     temperature=0
 )
 
-# ==============================
-# JSON Parser
-# ==============================
-parser = JsonOutputParser()
 
 # ==============================
 # Chain
 # ==============================
 chain = prompt | model | parser
+
 
 # ==============================
 # Submit Button
@@ -212,17 +228,19 @@ if st.button("🚀 Analyze Query"):
                 st.markdown(f"""
                 <div class="card">
                 <h3>📌 Topic</h3>
-                <p>{response['topic']}</p>
+                <p>{response.get('topic') or response.get('Topic', 'No topic generated')}</p>
                 </div>
                 """, unsafe_allow_html=True)
 
                 # ==============================
                 # Keywords
                 # ==============================
+                keywords = response.get('keywords') or response.get('Keywords', [])
+
                 st.markdown(f"""
                 <div class="card">
                 <h3>🔑 Keywords</h3>
-                <p>{", ".join(response['keywords'])}</p>
+                <p>{", ".join(keywords)}</p>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -232,7 +250,7 @@ if st.button("🚀 Analyze Query"):
                 st.markdown(f"""
                 <div class="card">
                 <h3>🧠 Explanation</h3>
-                <p>{response['answer']}</p>
+                <p>{response.get('answer') or response.get('Answer', 'No answer generated')}</p>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -242,7 +260,7 @@ if st.button("🚀 Analyze Query"):
                 st.markdown("### 💻 Python Code")
 
                 st.code(
-                    response['python_code'],
+                    response.get('python_code') or response.get('Python Code', 'No code generated'),
                     language="python"
                 )
 
@@ -251,7 +269,9 @@ if st.button("🚀 Analyze Query"):
                 # ==============================
                 st.markdown("### 🔗 Useful Resources")
 
-                for link in response['links']:
+                links = response.get('links') or response.get('Links', [])
+
+                for link in links:
                     st.markdown(f"- [{link}]({link})")
 
             except Exception as e:
@@ -261,3 +281,4 @@ if st.button("🚀 Analyze Query"):
     else:
 
         st.warning("⚠️ Please enter a question.")
+
